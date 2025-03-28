@@ -1,0 +1,365 @@
+/**
+ * Clase que implementa un Árbol AVL genérico
+ * @author Alejandro Castillo
+ * @param <T> 
+ */
+public class ArbolAVL<T extends Comparable<T>> {
+    public NodoAVL<T> raiz; // Raíz del árbol
+    int cont;               // Contador de nodos en el árbol
+
+    // Constructor que inicializa el árbol vacío
+    public ArbolAVL() {
+        this.raiz = null;
+        this.cont = 0;
+    }
+
+    // Definición de la clase NodoAVL
+    public class NodoAVL<T extends Comparable<T>> {
+        T elem;
+        NodoAVL<T> izq, der, papa;
+        int altura;
+
+        public NodoAVL(T elem) {
+            this.elem = elem;
+            this.altura = 1;
+        }
+
+        // Obtener el factor de equilibrio (FE)
+        public int getFe() {
+            int izqAltura = (izq != null) ? izq.altura : 0;
+            int derAltura = (der != null) ? der.altura : 0;
+            return derAltura - izqAltura;
+        }
+
+        // Actualizar la altura del nodo
+        public void actualizarAltura() {
+            int izqAltura = (izq != null) ? izq.altura : 0;
+            int derAltura = (der != null) ? der.altura : 0;
+            this.altura = 1 + Math.max(izqAltura, derAltura);
+        }
+    }
+
+    // Metodo para buscar un elemento, que hace uso de un metodo privado para recursividad
+    public boolean buscar(T elem) {
+        return buscarAVL(raiz, elem);
+    }
+    
+    private boolean buscarAVL(NodoAVL<T> nodo, T elem) {
+        if (nodo == null) {
+            return false; // No se encontró el elemento.
+        }
+
+        if (elem.compareTo(nodo.elem) < 0) {
+            return buscarAVL(nodo.izq, elem); // Busca en el subárbol izquierdo.
+        } else if (elem.compareTo(nodo.elem) > 0) {
+            return buscarAVL(nodo.der, elem); // Busca en el subárbol derecho.
+        } else {
+            return true; // Elemento encontrado.
+        }
+    }
+     
+    // Método para insertar un elemento en el árbol AVL
+    public void insertar(T elem) {
+        raiz = insertarAVL(raiz, elem, null);
+    }
+
+    // Método recursivo para insertar un nodo en el árbol
+    private NodoAVL<T> insertarAVL(NodoAVL<T> nodo, T elem, NodoAVL<T> papa) {
+        if (nodo == null) {
+            cont++;
+            NodoAVL<T> nuevoNodo = new NodoAVL<>(elem);
+            nuevoNodo.papa = papa;
+            return nuevoNodo;
+        }
+
+        // Comparación para determinar en qué subárbol insertar
+        if (elem.compareTo(nodo.elem) < 0) {
+            nodo.izq = insertarAVL(nodo.izq, elem, nodo);
+        } else if (elem.compareTo(nodo.elem) > 0) {
+            nodo.der = insertarAVL(nodo.der, elem, nodo);
+        } else {
+            return nodo; // No se permiten elementos duplicados
+        }
+
+        // Actualizar altura y balancear
+        nodo.actualizarAltura();
+        return balancear(nodo);
+    }
+
+    // Método para eliminar un nodo del árbol
+    public void eliminar(T elem) {
+        raiz = eliminarAVL(raiz, elem);
+    }
+
+    // Método recursivo para eliminar un nodo
+    private NodoAVL<T> eliminarAVL(NodoAVL<T> nodo, T elem) {
+        if (nodo == null) return null;
+
+        if (elem.compareTo(nodo.elem) < 0) {
+            nodo.izq = eliminarAVL(nodo.izq, elem);
+            if (nodo.izq != null) 
+                nodo.izq.papa = nodo;                   // Actualizar `papa` del hijo izquierdo
+        } else if (elem.compareTo(nodo.elem) > 0) {
+            nodo.der = eliminarAVL(nodo.der, elem);
+            if (nodo.der != null) 
+                nodo.der.papa = nodo;                   // Actualizar `papa` del hijo derecho
+        } else {
+            // Caso 1: Nodo con un solo hijo o sin hijos
+            if (nodo.izq == null) {
+                if (nodo.der != null) 
+                    nodo.der.papa = nodo.papa;  // Actualizar `papa` del hijo derecho
+                return nodo.der;
+            }
+            if (nodo.der == null) {
+                if (nodo.izq != null) 
+                    nodo.izq.papa = nodo.papa;  // Actualizar `papa` del hijo izquierdo
+                return nodo.izq;
+            }
+            // Caso 2: Nodo con dos hijos
+            NodoAVL<T> sucesor = encontrarMin(nodo.der);
+            nodo.elem = sucesor.elem;
+            nodo.der = eliminarAVL(nodo.der, sucesor.elem);
+        }
+
+        // Actualizar altura y balancear
+        nodo.actualizarAltura();
+        return balancear(nodo);
+    }
+
+    
+    // Método para calcular la altura del árbol
+    public int calcularAltura() {
+        return altura(raiz);
+    }
+    
+    private int altura(NodoAVL<T> nodo) {
+        if (nodo == null)
+            return 0;
+        return 1 + Math.max(altura(nodo.izq), altura(nodo.der));
+    }
+
+    // Encuentra el nodo con el valor mínimo en el subárbol
+    private NodoAVL<T> encontrarMin(NodoAVL<T> nodo) {
+        while (nodo.izq != null) 
+            nodo = nodo.izq;
+        return nodo;
+    }
+
+    // Método que balancea el árbol AVL después de cada inserción/eliminación
+    private NodoAVL<T> balancear(NodoAVL<T> nodo) {
+        int fe = nodo.getFe();
+
+        // Rotación Derecha (LL)
+        if (fe < -1 && nodo.izq.getFe() <= 0) {
+            return rotacionDerecha(nodo);
+        }
+
+        // Rotación Izquierda (RR)
+        if (fe > 1 && nodo.der.getFe() >= 0) {
+            return rotacionIzquierda(nodo);
+        }
+
+        // Rotación Doble Izquierda-Derecha (LR)
+        if (fe < -1 && nodo.izq.getFe() > 0) {
+            nodo.izq = rotacionIzquierda(nodo.izq);
+            return rotacionDerecha(nodo);
+        }
+
+        // Rotación Doble Derecha-Izquierda (RL)
+        if (fe > 1 && nodo.der.getFe() < 0) {
+            nodo.der = rotacionDerecha(nodo.der);
+            return rotacionIzquierda(nodo);
+        }
+
+        return nodo;
+    }
+
+    // Rotación simple a la derecha
+    private NodoAVL<T> rotacionDerecha(NodoAVL<T> nodo) {
+        NodoAVL<T> nuevaRaiz = nodo.izq;
+        nodo.izq = nuevaRaiz.der;
+
+        if (nuevaRaiz.der != null) 
+            nuevaRaiz.der.papa = nodo;
+
+        nuevaRaiz.der = nodo;
+        nuevaRaiz.papa = nodo.papa;  // Asigna el padre correcto
+        nodo.papa = nuevaRaiz;
+
+        // Si la rotación afecta a la raíz, la actualizamos
+        if (nuevaRaiz.papa == null) 
+            raiz = nuevaRaiz;
+
+        // Ajustar alturas
+        nodo.actualizarAltura();
+        nuevaRaiz.actualizarAltura();
+
+        return nuevaRaiz;
+    }
+    
+    // Rotación simple a la izquierda
+    private NodoAVL<T> rotacionIzquierda(NodoAVL<T> nodo) {
+        NodoAVL<T> nuevaRaiz = nodo.der;
+        nodo.der = nuevaRaiz.izq;
+
+        if (nuevaRaiz.izq != null) 
+            nuevaRaiz.izq.papa = nodo;
+
+        nuevaRaiz.izq = nodo;
+        nuevaRaiz.papa = nodo.papa;  // Asigna el padre correcto
+        nodo.papa = nuevaRaiz;
+
+        // Si la rotación afecta a la raíz, la actualizamos
+        if (nuevaRaiz.papa == null) 
+            raiz = nuevaRaiz;
+
+        // Ajustar alturas
+        nodo.actualizarAltura();
+        nuevaRaiz.actualizarAltura();
+
+        return nuevaRaiz;
+    }   
+
+    // Método para imprimir el árbol en formato jerárquico
+    public void imprimirArbol() {
+        imprimirArbol(raiz, 0);
+    }
+
+    private void imprimirArbol(NodoAVL<T> nodo, int nivel) {
+        if (nodo == null) return;
+
+        imprimirArbol(nodo.izq, nivel + 1);
+        
+        for(int i = 1; i <= nivel; i++)
+            System.out.print("  ");
+        System.out.println("|-" + nodo.elem);
+        
+        imprimirArbol(nodo.der, nivel + 1);
+    }
+    
+    
+   
+    // LO SIGUIENTE FUE PROGRAMADO CON AYUDA DE CHATGPT, PARA LAS PRUEBAS DEL CODIGO
+    
+    
+
+    // Verifica si cada nodo tiene la referencia correcta a su padre
+    public boolean verificarPadres() {
+        return verificarPadres(raiz, null);
+    }
+
+    // Método recursivo para verificar la consistencia de `papa`
+    private boolean verificarPadres(NodoAVL<T> nodo, NodoAVL<T> padreEsperado) {
+        if (nodo == null) return true;
+
+        if (nodo.papa != padreEsperado) {
+            System.out.println("❌ ERROR: Nodo " + nodo.elem + " tiene padre incorrecto. Esperado: " + 
+                (padreEsperado != null ? padreEsperado.elem : "null") + ", Actual: " + 
+                (nodo.papa != null ? nodo.papa.elem : "null"));
+            return false;
+        }
+
+        return verificarPadres(nodo.izq, nodo) && verificarPadres(nodo.der, nodo);
+    }
+  
+    public static void main(String[] args) {
+    ArbolAVL<Integer> arbol = new ArbolAVL<>();
+
+    // Inserción de múltiples elementos
+    System.out.println("Insertando elementos en el AVL...");
+    int[] elementos = {100, 7, 23, 5, 4, -10, 10, 6, 700, 88, 8, 50};
+    for (int elem : elementos) {
+        arbol.insertar(elem);
+    }
+    
+    
+    System.out.println("Árbol después de las inserciones:");
+    arbol.imprimirArbol();
+    
+    System.out.println("Eliminando el 7");
+    arbol.eliminar(7);
+    arbol.imprimirArbol();
+    
+    System.out.println("Eliminando el 8");
+    arbol.eliminar(8);
+    arbol.imprimirArbol();
+    
+    System.out.println("Eliminando el 10");
+    arbol.eliminar(10);
+    arbol.imprimirArbol();
+    
+    /*
+    System.out.println("🔍 Verificando padres después de inserciones: " + (arbol.verificarPadres() ? "✅ Correcto" : "❌ Error"));
+
+    // Eliminación de nodos específicos
+    System.out.println("\nPrueba: Eliminación de nodos específicos...");
+    System.out.println("Eliminando nodo con un solo hijo (35)");
+    arbol.eliminar(35);
+    arbol.imprimirArbol();
+    System.out.println("🔍 Verificando padres después de eliminar 35: " + (arbol.verificarPadres() ? "✅ Correcto" : "❌ Error"));
+
+    System.out.println("Eliminando nodo con dos hijos (30)");
+    arbol.eliminar(30);
+    arbol.imprimirArbol();
+    System.out.println("🔍 Verificando padres después de eliminar 30: " + (arbol.verificarPadres() ? "✅ Correcto" : "❌ Error"));
+
+    System.out.println("Eliminando nodo hoja (85)");
+    arbol.eliminar(85);
+    arbol.imprimirArbol();
+    System.out.println("🔍 Verificando padres después de eliminar 85: " + (arbol.verificarPadres() ? "✅ Correcto" : "❌ Error"));
+
+    // Rotaciones
+    System.out.println("\nPrueba: Rotaciones...");
+    
+    ArbolAVL<Integer> arbolRotSimpleIzq = new ArbolAVL<>();
+    arbolRotSimpleIzq.insertar(10);
+    arbolRotSimpleIzq.insertar(20);
+    arbolRotSimpleIzq.insertar(30); // Activa rotación simple izquierda
+    arbolRotSimpleIzq.imprimirArbol();
+    System.out.println("🔍 Verificando padres tras rotación simple izquierda: " + (arbolRotSimpleIzq.verificarPadres() ? "✅ Correcto" : "❌ Error"));
+
+    ArbolAVL<Integer> arbolRotSimpleDer = new ArbolAVL<>();
+    arbolRotSimpleDer.insertar(30);
+    arbolRotSimpleDer.insertar(20);
+    arbolRotSimpleDer.insertar(10); // Activa rotación simple derecha
+    arbolRotSimpleDer.imprimirArbol();
+    System.out.println("🔍 Verificando padres tras rotación simple derecha: " + (arbolRotSimpleDer.verificarPadres() ? "✅ Correcto" : "❌ Error"));
+
+    ArbolAVL<Integer> arbolRotDobleIzqDer = new ArbolAVL<>();
+    arbolRotDobleIzqDer.insertar(30);
+    arbolRotDobleIzqDer.insertar(10);
+    arbolRotDobleIzqDer.insertar(20); // Activa rotación doble IZQ-DER
+    arbolRotDobleIzqDer.imprimirArbol();
+    System.out.println("🔍 Verificando padres tras rotación doble IZQ-DER: " + (arbolRotDobleIzqDer.verificarPadres() ? "✅ Correcto" : "❌ Error"));
+
+    ArbolAVL<Integer> arbolRotDobleDerIzq = new ArbolAVL<>();
+    arbolRotDobleDerIzq.insertar(10);
+    arbolRotDobleDerIzq.insertar(30);
+    arbolRotDobleDerIzq.insertar(20); // Activa rotación doble DER-IZQ
+    arbolRotDobleDerIzq.imprimirArbol();
+    System.out.println("🔍 Verificando padres tras rotación doble DER-IZQ: " + (arbolRotDobleDerIzq.verificarPadres() ? "✅ Correcto" : "❌ Error"));
+
+     // PRUEBA DE INSERCIÓN Y ELIMINACIÓN MASIVA
+    System.out.println("\nPrueba: Inserción y eliminación masiva con números aleatorios...");
+    Random random = new Random();
+    for (int i = 0; i < 200; i++) {
+        int num = random.nextInt(100);
+        arbol.insertar(num);
+    }
+    arbol.imprimirArbol();
+    System.out.println("Altura después de inserciones aleatorias: " + arbol.calcularAltura());
+    System.out.println("🔍 Verificando padres tras insercion masiva: " + (arbol.verificarPadres() ? "✅ Correcto" : "❌ Error"));
+
+    for (int i = 0; i < 100; i++) {
+        int num = random.nextInt(100);
+        arbol.eliminar(num);
+    }
+    arbol.imprimirArbol();
+    System.out.println("Altura después de eliminaciones aleatorias: " + arbol.calcularAltura());
+    System.out.println("🔍 Verificando padres tras eliminacion masiva: " + (arbol.verificarPadres() ? "✅ Correcto" : "❌ Error"));
+
+    */
+    
+    System.out.println("\n✅ TODAS LAS PRUEBAS FINALIZADAS.");
+    }
+}
